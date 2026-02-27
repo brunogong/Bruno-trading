@@ -4,7 +4,3 @@ pandas
 numpy
 plotly
 pytz
-prophet
-scikit-learn
-tensorflow
-keras
