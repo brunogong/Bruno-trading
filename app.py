@@ -1,5 +1,5 @@
 """
-TRADING TERMINAL PRO - VERSIONE AI AVANZATA (COMPLETA)
+TRADING TERMINAL PRO - VERSIONE AI AVANZATA (COMPLETA E FUNZIONANTE)
 ✅ TP basato su livelli di supporto/resistenza (Pivot Points)
 ✅ Trend e previsioni del giorno da analisi AI
 ✅ Sentiment da fonti specializzate
@@ -11,7 +11,7 @@ import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
-from datetime import datetime, timedelta
+from datetime import datetime
 import pytz
 import random
 
@@ -765,6 +765,8 @@ if analyze_btn:
             # PARTE 3: SEGNALE COMBINATO
             # ============================================
             
+            st.markdown("## 🎯 SEGNALE COMBINATO")
+            
             # Segnale base da RSI
             if current_rsi > 50:
                 base_signal = "BUY"
@@ -783,6 +785,18 @@ if analyze_btn:
             else:
                 combined_signal = f"⚠️ DIVERGENZA: Tecnico={base_signal}, AI={ai_signal}"
                 combined_class = "sentiment-neutral"
+            
+            st.markdown(f"""
+            <div style="background: #1a1f2e; padding: 15px; border-radius: 10px; margin: 15px 0; border-left: 5px solid #00ff00;">
+                <h3 style="color: #ffffff; margin: 0;">{combined_signal}</h3>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            # ============================================
+            # PARTE 4: LIVELLI OPERATIVI
+            # ============================================
+            
+            st.markdown("## 📊 LIVELLI OPERATIVI")
             
             # DETERMINA TP BASATO SU PIVOT
             if base_signal == "BUY":
@@ -827,26 +841,5 @@ if analyze_btn:
             actual_risk = lotti * abs(entry - sl) * multiplier
             rr_ratio = abs(tp - entry) / abs(sl - entry) if sl != entry else 1
             
-            # ============================================
-            # VISUALIZZAZIONE
-            # ============================================
-            
-            st.markdown("## 📊 RISULTATI OPERATIVI")
-            
-            # Metriche principali
-            col1, col2, col3, col4 = st.columns(4)
-            
-            with col1:
-                st.markdown(f"""
-                <div class="metric-card">
-                    <div class="metric-label">RSI (14)</div>
-                    <div class="metric-value">{current_rsi:.1f}</div>
-                </div>
-                """, unsafe_allow_html=True)
-            
-            with col2:
-                st.markdown(f"""
-                <div class="metric-card">
-                    <div class="metric-label">AI CONFIDENCE</div>
-                   
-
+            # Price Card
+            st.markdown
