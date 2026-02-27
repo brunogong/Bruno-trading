@@ -841,4 +841,4 @@ if analyze_btn:
             actual_risk = lotti * abs(entry - sl) * multiplier
             rr_ratio = abs(tp - entry) / abs(sl - entry) if sl != entry else 1
             
-            # Price
+            #
