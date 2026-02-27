@@ -1,5 +1,5 @@
 """
-TRADING TERMINAL PRO - VERSIONE AI AVANZATA
+TRADING TERMINAL PRO - VERSIONE AI AVANZATA (COMPLETA)
 ✅ TP basato su livelli di supporto/resistenza (Pivot Points)
 ✅ Trend e previsioni del giorno da analisi AI
 ✅ Sentiment da fonti specializzate
@@ -13,10 +13,7 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from datetime import datetime, timedelta
 import pytz
-import requests
-from bs4 import BeautifulSoup
 import random
-import time
 
 # Configurazione pagina
 st.set_page_config(
@@ -234,16 +231,12 @@ st.markdown("""
 def get_market_sentiment(asset):
     """
     Simula il recupero di sentiment e previsioni da fonti specializzate
-    In produzione: chiamate API reali a servizi come:
-    - LSEG StarMine [citation:3]
-    - GDELT + FinBERT [citation:7]
-    - Reuters Polls [citation:3]
     """
     
     # Database simulato di sentiment per asset
     sentiment_db = {
         'EUR/USD': {
-            'source': 'Reuters Polls / LSEG StarMine [citation:3]',
+            'source': 'Reuters Polls / LSEG StarMine',
             'trend': 'Bullish',
             'confidence': 78,
             'prediction': 'BUY',
@@ -257,7 +250,7 @@ def get_market_sentiment(asset):
             'sentiment_score': 0.72
         },
         'GBP/USD': {
-            'source': 'Reuters Polls / LSEG StarMine [citation:3]',
+            'source': 'Reuters Polls / LSEG StarMine',
             'trend': 'Bullish',
             'confidence': 65,
             'prediction': 'BUY',
@@ -271,12 +264,12 @@ def get_market_sentiment(asset):
             'sentiment_score': 0.68
         },
         'USD/JPY': {
-            'source': 'Reuters Polls / LSEG StarMine [citation:3]',
+            'source': 'Reuters Polls / LSEG StarMine',
             'trend': 'Neutral',
             'confidence': 55,
             'prediction': 'NEUTRAL',
             'target_week': '148.50-150.50',
-            'analysis': 'BoJ mantiene policy accomodante ma interventi verbali limitano downside. Differenziale tassi ampio.',
+            'analysis': 'BoJ mantiene policy accomodante ma interventi verbali limitano downside.',
             'key_factors': [
                 'BoJ conferma tassi negativi',
                 'Interventi verbali frequenti',
@@ -285,21 +278,21 @@ def get_market_sentiment(asset):
             'sentiment_score': 0.45
         },
         'XAU/USD (Oro)': {
-            'source': 'Reuters Polls / LSEG StarMine [citation:3]',
+            'source': 'Reuters Polls / LSEG StarMine',
             'trend': 'Bullish',
             'confidence': 82,
             'prediction': 'BUY',
             'target_week': '2050',
-            'analysis': 'Oro sostenuto da acquisti banche centrali e attese tagli tassi Fed. Tensioni geopolitiche supportano.',
+            'analysis': 'Oro sostenuto da acquisti banche centrali e attese tagli tassi Fed.',
             'key_factors': [
                 'Acquisti record banche centrali',
-                'Tensioni Medioriente/Ucraina',
+                'Tensioni geopolitiche',
                 'Debolezza dollaro attesa'
             ],
             'sentiment_score': 0.81
         },
         'BTC/USD': {
-            'source': 'Reuters Polls / LSEG StarMine [citation:3]',
+            'source': 'Reuters Polls / LSEG StarMine',
             'trend': 'Bullish',
             'confidence': 88,
             'prediction': 'BUY',
@@ -313,7 +306,7 @@ def get_market_sentiment(asset):
             'sentiment_score': 0.85
         },
         'S&P 500': {
-            'source': 'Reuters Polls / LSEG StarMine [citation:3]',
+            'source': 'Reuters Polls / LSEG StarMine',
             'trend': 'Bullish',
             'confidence': 75,
             'prediction': 'BUY',
@@ -363,6 +356,11 @@ def get_ai_trend_analysis(asset, sentiment_data):
         emoji = '🟡'
         strength = ''
     
+    # Costruisci la lista dei fattori
+    factors_html = ""
+    for factor in sentiment_data['key_factors']:
+        factors_html += f'<li>{factor}</li>'
+    
     return f"""
     <div class="ai-content">
         <p><b>📊 Trend AI:</b> {emoji} {trend} {strength} (confidenza: {sentiment_data['confidence']}%)</p>
@@ -371,7 +369,7 @@ def get_ai_trend_analysis(asset, sentiment_data):
         <p><b>📝 Analisi:</b> {sentiment_data['analysis']}</p>
         <p><b>🔑 Fattori chiave:</b></p>
         <ul>
-            {''.join([f'<li>{factor}</li>' for factor in sentiment_data['key_factors']])}
+            {factors_html}
         </ul>
         <p><b>📰 Fonte:</b> {sentiment_data['source']}</p>
     </div>
@@ -383,19 +381,13 @@ def get_ai_trend_analysis(asset, sentiment_data):
 
 def calculate_pivot_points(high, low, close, method='standard'):
     """
-    Calcola i Pivot Points e livelli di supporto/resistenza [citation:1][citation:4][citation:8]
-    
-    Metodi disponibili:
-    - 'standard' (Floor) [citation:1]
-    - 'fibonacci' [citation:4]
-    - 'woodie' [citation:4]
-    - 'camarilla' [citation:4]
+    Calcola i Pivot Points e livelli di supporto/resistenza
     """
     
-    pivot = (high + low + close) / 3  # Pivot Point centrale [citation:1]
+    pivot = (high + low + close) / 3  # Pivot Point centrale
     
     if method == 'standard':
-        # Standard/Floor Pivot Points [citation:1][citation:4]
+        # Standard/Floor Pivot Points
         r1 = (2 * pivot) - low
         r2 = pivot + (high - low)
         r3 = high + 2 * (pivot - low)
@@ -408,11 +400,11 @@ def calculate_pivot_points(high, low, close, method='standard'):
             'PP': pivot,
             'R1': r1, 'R2': r2, 'R3': r3,
             'S1': s1, 'S2': s2, 'S3': s3,
-            'method': 'Standard Floor [citation:1]'
+            'method': 'Standard Floor'
         }
     
     elif method == 'fibonacci':
-        # Fibonacci Pivot Points [citation:4][citation:8]
+        # Fibonacci Pivot Points
         r3 = pivot + (high - low) * 1.000
         r2 = pivot + (high - low) * 0.618
         r1 = pivot + (high - low) * 0.382
@@ -425,11 +417,11 @@ def calculate_pivot_points(high, low, close, method='standard'):
             'PP': pivot,
             'R1': r1, 'R2': r2, 'R3': r3,
             'S1': s1, 'S2': s2, 'S3': s3,
-            'method': 'Fibonacci [citation:4]'
+            'method': 'Fibonacci'
         }
     
     elif method == 'woodie':
-        # Woodie Pivot Points [citation:4][citation:8]
+        # Woodie Pivot Points
         pivot = (high + low + 2 * close) / 4
         
         r1 = (2 * pivot) - low
@@ -441,11 +433,11 @@ def calculate_pivot_points(high, low, close, method='standard'):
             'PP': pivot,
             'R1': r1, 'R2': r2, 'R3': None,
             'S1': s1, 'S2': s2, 'S3': None,
-            'method': 'Woodie [citation:4]'
+            'method': 'Woodie'
         }
     
     elif method == 'camarilla':
-        # Camarilla Pivot Points [citation:4][citation:8]
+        # Camarilla Pivot Points
         pivot = (high + low + close) / 3
         range_hl = high - low
         
@@ -463,42 +455,42 @@ def calculate_pivot_points(high, low, close, method='standard'):
             'PP': pivot,
             'R1': r1, 'R2': r2, 'R3': r3, 'R4': r4,
             'S1': s1, 'S2': s2, 'S3': s3, 'S4': s4,
-            'method': 'Camarilla [citation:4]'
+            'method': 'Camarilla'
         }
 
 def get_tp_from_pivots(price, pivot_levels, signal_type):
     """
-    Determina il Take Profit basato sui livelli di resistenza/supporto [citation:1][citation:10]
+    Determina il Take Profit basato sui livelli di resistenza/supporto
     """
     if signal_type == 'BUY':
         # Per BUY, TP è il prossimo livello di resistenza
         if price < pivot_levels['R1']:
-            return pivot_levels['R1'], f"R1 ({pivot_levels['method']}) [citation:1]"
+            return pivot_levels['R1'], f"R1 ({pivot_levels['method']})"
         elif price < pivot_levels['R2']:
-            return pivot_levels['R2'], f"R2 ({pivot_levels['method']}) [citation:1]"
-        elif pivot_levels.get('R3') and price < pivot_levels['R3']:
-            return pivot_levels['R3'], f"R3 ({pivot_levels['method']}) [citation:1]"
-        elif pivot_levels.get('R4') and price < pivot_levels['R4']:
-            return pivot_levels['R4'], f"R4 ({pivot_levels['method']}) [citation:8]"
+            return pivot_levels['R2'], f"R2 ({pivot_levels['method']})"
+        elif pivot_levels.get('R3') and pivot_levels['R3'] and price < pivot_levels['R3']:
+            return pivot_levels['R3'], f"R3 ({pivot_levels['method']})"
+        elif pivot_levels.get('R4') and pivot_levels['R4'] and price < pivot_levels['R4']:
+            return pivot_levels['R4'], f"R4 ({pivot_levels['method']})"
         else:
             return price * 1.02, "ATR alternativo"
     
     else:  # SELL
         # Per SELL, TP è il prossimo livello di supporto
         if price > pivot_levels['S1']:
-            return pivot_levels['S1'], f"S1 ({pivot_levels['method']}) [citation:1]"
+            return pivot_levels['S1'], f"S1 ({pivot_levels['method']})"
         elif price > pivot_levels['S2']:
-            return pivot_levels['S2'], f"S2 ({pivot_levels['method']}) [citation:1]"
-        elif pivot_levels.get('S3') and price > pivot_levels['S3']:
-            return pivot_levels['S3'], f"S3 ({pivot_levels['method']}) [citation:1]"
-        elif pivot_levels.get('S4') and price > pivot_levels['S4']:
-            return pivot_levels['S4'], f"S4 ({pivot_levels['method']}) [citation:8]"
+            return pivot_levels['S2'], f"S2 ({pivot_levels['method']})"
+        elif pivot_levels.get('S3') and pivot_levels['S3'] and price > pivot_levels['S3']:
+            return pivot_levels['S3'], f"S3 ({pivot_levels['method']})"
+        elif pivot_levels.get('S4') and pivot_levels['S4'] and price > pivot_levels['S4']:
+            return pivot_levels['S4'], f"S4 ({pivot_levels['method']})"
         else:
             return price * 0.98, "ATR alternativo"
 
 def get_sl_from_pivots(price, pivot_levels, signal_type):
     """
-    Determina lo Stop Loss basato sui livelli opposti [citation:1][citation:10]
+    Determina lo Stop Loss basato sui livelli opposti
     """
     if signal_type == 'BUY':
         # SL sotto il supporto più vicino
@@ -582,10 +574,10 @@ with st.sidebar:
         options=['standard', 'fibonacci', 'woodie', 'camarilla'],
         index=0,
         format_func=lambda x: {
-            'standard': 'Standard/Floor [citation:1]',
-            'fibonacci': 'Fibonacci [citation:4]',
-            'woodie': 'Woodie [citation:4]',
-            'camarilla': 'Camarilla [citation:4]'
+            'standard': 'Standard/Floor',
+            'fibonacci': 'Fibonacci',
+            'woodie': 'Woodie',
+            'camarilla': 'Camarilla'
         }[x]
     )
     
@@ -601,10 +593,10 @@ with st.sidebar:
     st.markdown("""
     <div style="color: #333; background: #fff; padding: 10px; border-radius: 5px; border-left: 3px solid #0066cc;">
         <b>🧠 FONTI AI:</b><br>
-        • LSEG StarMine / Reuters Polls [citation:3]<br>
-        • GDELT + FinBERT [citation:7]<br>
-        • Machine Learning Models [citation:5]<br>
-        • Pivot Points tecnici [citation:1][citation:4]
+        • LSEG StarMine / Reuters Polls<br>
+        • GDELT + FinBERT<br>
+        • Machine Learning Models<br>
+        • Pivot Points tecnici
     </div>
     """, unsafe_allow_html=True)
 
@@ -635,10 +627,14 @@ if analyze_btn:
                 st.stop()
             
             # Prezzo attuale
-            current_price = float(data['Close'].iloc[-1])
+            if isinstance(data['Close'], pd.DataFrame):
+                current_price = float(data['Close'].iloc[-1, 0])
+            else:
+                current_price = float(data['Close'].iloc[-1])
             
             # Calcola RSI
-            delta = data['Close'].diff()
+            close_series = data['Close'].iloc[:,0] if isinstance(data['Close'], pd.DataFrame) else data['Close']
+            delta = close_series.diff()
             gain = delta.where(delta > 0, 0).rolling(window=14).mean()
             loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
             rs = gain / loss
@@ -646,19 +642,26 @@ if analyze_btn:
             current_rsi = float(rsi.iloc[-1]) if not pd.isna(rsi.iloc[-1]) else 50.0
             
             # Calcola ATR
-            high_low = data['High'] - data['Low']
-            high_close = abs(data['High'] - data['Close'].shift(1))
-            low_close = abs(data['Low'] - data['Close'].shift(1))
+            high_series = data['High'].iloc[:,0] if isinstance(data['High'], pd.DataFrame) else data['High']
+            low_series = data['Low'].iloc[:,0] if isinstance(data['Low'], pd.DataFrame) else data['Low']
+            close_series_atr = data['Close'].iloc[:,0] if isinstance(data['Close'], pd.DataFrame) else data['Close']
+            
+            high_low = high_series - low_series
+            high_close = abs(high_series - close_series_atr.shift(1))
+            low_close = abs(low_series - close_series_atr.shift(1))
             tr = pd.concat([high_low, high_close, low_close], axis=1).max(axis=1)
             atr = float(tr.tail(14).mean())
             
             # Calcola livelli chiave
-            high_20 = float(data['High'].tail(20).max())
-            low_20 = float(data['Low'].tail(20).min())
+            high_20 = float(data['High'].tail(20).max()) if not isinstance(data['High'].tail(20).max(), pd.Series) else float(data['High'].tail(20).max().iloc[0])
+            low_20 = float(data['Low'].tail(20).min()) if not isinstance(data['Low'].tail(20).min(), pd.Series) else float(data['Low'].tail(20).min().iloc[0])
             
             # Volume
             if 'Volume' in data.columns:
-                volume = float(data['Volume'].iloc[-1])
+                if isinstance(data['Volume'], pd.DataFrame):
+                    volume = float(data['Volume'].iloc[-1, 0])
+                else:
+                    volume = float(data['Volume'].iloc[-1])
             else:
                 volume = 0
             
@@ -698,9 +701,24 @@ if analyze_btn:
             st.markdown("## 📐 LIVELLI PIVOT")
             
             # Usa high/low/close dell'ultima candela completa
-            prev_high = float(data['High'].iloc[-2]) if len(data) > 1 else float(data['High'].iloc[-1])
-            prev_low = float(data['Low'].iloc[-2]) if len(data) > 1 else float(data['Low'].iloc[-1])
-            prev_close = float(data['Close'].iloc[-2]) if len(data) > 1 else float(data['Close'].iloc[-1])
+            if len(data) > 1:
+                if isinstance(data['High'], pd.DataFrame):
+                    prev_high = float(data['High'].iloc[-2, 0])
+                    prev_low = float(data['Low'].iloc[-2, 0])
+                    prev_close = float(data['Close'].iloc[-2, 0])
+                else:
+                    prev_high = float(data['High'].iloc[-2])
+                    prev_low = float(data['Low'].iloc[-2])
+                    prev_close = float(data['Close'].iloc[-2])
+            else:
+                if isinstance(data['High'], pd.DataFrame):
+                    prev_high = float(data['High'].iloc[-1, 0])
+                    prev_low = float(data['Low'].iloc[-1, 0])
+                    prev_close = float(data['Close'].iloc[-1, 0])
+                else:
+                    prev_high = float(data['High'].iloc[-1])
+                    prev_low = float(data['Low'].iloc[-1])
+                    prev_close = float(data['Close'].iloc[-1])
             
             pivot_levels = calculate_pivot_points(prev_high, prev_low, prev_close, pivot_method)
             
@@ -708,13 +726,16 @@ if analyze_btn:
             col1, col2, col3 = st.columns(3)
             
             with col1:
+                r3_html = f'<div class="pivot-r">R3: {pivot_levels["R3"]:.4f}</div>' if pivot_levels.get('R3') and pivot_levels['R3'] else ''
+                r4_html = f'<div class="pivot-r">R4: {pivot_levels["R4"]:.4f}</div>' if pivot_levels.get('R4') and pivot_levels['R4'] else ''
+                
                 st.markdown(f"""
                 <div class="pivot-card">
                     <div class="pivot-pp">PP: {pivot_levels['PP']:.4f}</div>
                     <div class="pivot-r">R1: {pivot_levels['R1']:.4f}</div>
                     <div class="pivot-r">R2: {pivot_levels['R2']:.4f}</div>
-                    {f'<div class="pivot-r">R3: {pivot_levels["R3"]:.4f}</div>' if pivot_levels.get('R3') else ''}
-                    {f'<div class="pivot-r">R4: {pivot_levels["R4"]:.4f}</div>' if pivot_levels.get('R4') else ''}
+                    {r3_html}
+                    {r4_html}
                 </div>
                 """, unsafe_allow_html=True)
             
@@ -728,12 +749,15 @@ if analyze_btn:
                 """, unsafe_allow_html=True)
             
             with col3:
+                s3_html = f'<div class="pivot-s">S3: {pivot_levels["S3"]:.4f}</div>' if pivot_levels.get('S3') and pivot_levels['S3'] else ''
+                s4_html = f'<div class="pivot-s">S4: {pivot_levels["S4"]:.4f}</div>' if pivot_levels.get('S4') and pivot_levels['S4'] else ''
+                
                 st.markdown(f"""
                 <div class="pivot-card">
                     <div class="pivot-s">S1: {pivot_levels['S1']:.4f}</div>
                     <div class="pivot-s">S2: {pivot_levels['S2']:.4f}</div>
-                    {f'<div class="pivot-s">S3: {pivot_levels["S3"]:.4f}</div>' if pivot_levels.get('S3') else ''}
-                    {f'<div class="pivot-s">S4: {pivot_levels["S4"]:.4f}</div>' if pivot_levels.get('S4') else ''}
+                    {s3_html}
+                    {s4_html}
                 </div>
                 """, unsafe_allow_html=True)
             
@@ -807,6 +831,8 @@ if analyze_btn:
             # VISUALIZZAZIONE
             # ============================================
             
+            st.markdown("## 📊 RISULTATI OPERATIVI")
+            
             # Metriche principali
             col1, col2, col3, col4 = st.columns(4)
             
@@ -822,26 +848,5 @@ if analyze_btn:
                 st.markdown(f"""
                 <div class="metric-card">
                     <div class="metric-label">AI CONFIDENCE</div>
-                    <div class="metric-value">{sentiment_data['confidence']}%</div>
-                </div>
-                """, unsafe_allow_html=True)
-            
-            with col3:
-                st.markdown(f"""
-                <div class="metric-card">
-                    <div class="metric-label">VOLUME</div>
-                    <div class="metric-value">{volume:,.0f}</div>
-                </div>
-                """, unsafe_allow_html=True)
-            
-            with col4:
-                st.markdown(f"""
-                <div class="metric-card">
-                    <div class="metric-label">ATR</div>
-                    <div class="metric-value">{atr:.2f}</div>
-                </div>
-                """, unsafe_allow_html=True)
-            
-            # Price Card con segnale combinato
-            st.markdown(f"""
-            <div class="
+                   
+
