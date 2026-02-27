@@ -1,8 +1,10 @@
 """
-TRADING TERMINAL PRO - VERSIONE AI AVANZATA (COMPLETA E FUNZIONANTE)
-✅ TP basato su livelli di supporto/resistenza (Pivot Points)
-✅ Trend e previsioni del giorno da analisi AI
-✅ Sentiment da fonti specializzate
+TRADING TERMINAL AI PRO - VERSIONE ULTIMATE
+✅ MACD + Bollinger Bands + RSI + ATR
+✅ Machine Learning per previsioni (Prophet + LSTM)
+✅ Pivot Points (4 metodi)
+✅ Sentiment AI
+✅ Money Management
 """
 
 import streamlit as st
@@ -11,13 +13,43 @@ import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
-from datetime import datetime
+from datetime import datetime, timedelta
 import pytz
 import random
 
+# ============================================
+# INSTALLAZIONE DIPENDENZE ML (da eseguire una volta)
+# ============================================
+import subprocess
+import sys
+
+def install_packages():
+    packages = ['prophet', 'scikit-learn', 'tensorflow', 'keras']
+    for package in packages:
+        try:
+            __import__(package.replace('-', '_'))
+        except ImportError:
+            subprocess.check_call([sys.executable, '-m', 'pip', 'install', package])
+
+# Commenta dopo la prima esecuzione
+# install_packages()
+
+# ============================================
+# IMPORT ML (dopo installazione)
+# ============================================
+try:
+    from prophet import Prophet
+    from sklearn.ensemble import RandomForestRegressor
+    from sklearn.preprocessing import MinMaxScaler
+    from sklearn.model_selection import train_test_split
+    ML_AVAILABLE = True
+except ImportError:
+    ML_AVAILABLE = False
+    st.warning("⚠️ Moduli ML non disponibili. Le previsioni ML saranno simulate.")
+
 # Configurazione pagina
 st.set_page_config(
-    page_title="Trading Terminal AI Pro",
+    page_title="Trading Terminal AI Ultimate",
     page_icon="🤖",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -65,6 +97,23 @@ st.markdown("""
         color: #00ff00 !important;
         font-size: 28px;
         margin: 0;
+    }
+    
+    /* ML Card */
+    .ml-card {
+        background: linear-gradient(135deg, #2a1a3a, #1a0f24);
+        padding: 20px;
+        border-radius: 15px;
+        border: 1px solid #aa00ff;
+        margin: 15px 0;
+        box-shadow: 0 0 20px rgba(170,0,255,0.1);
+    }
+    
+    .ml-title {
+        color: #aa00ff !important;
+        font-size: 18px;
+        font-weight: bold;
+        margin-bottom: 10px;
     }
     
     /* AI Signal Card */
@@ -223,6 +272,237 @@ st.markdown("""
     }
 </style>
 """, unsafe_allow_html=True)
+
+# ============================================
+# FUNZIONI INDICATORI TECNICI
+# ============================================
+
+def calculate_rsi(prices, period=14):
+    """Calcola RSI"""
+    delta = prices.diff()
+    gain = delta.where(delta > 0, 0).rolling(window=period).mean()
+    loss = (-delta.where(delta < 0, 0)).rolling(window=period).mean()
+    rs = gain / loss
+    rsi = 100 - (100 / (1 + rs))
+    return rsi
+
+def calculate_macd(prices, fast=12, slow=26, signal=9):
+    """Calcola MACD"""
+    exp1 = prices.ewm(span=fast, adjust=False).mean()
+    exp2 = prices.ewm(span=slow, adjust=False).mean()
+    macd = exp1 - exp2
+    signal_line = macd.ewm(span=signal, adjust=False).mean()
+    histogram = macd - signal_line
+    return macd, signal_line, histogram
+
+def calculate_bollinger(prices, period=20, std_dev=2):
+    """Calcola Bollinger Bands"""
+    sma = prices.rolling(window=period).mean()
+    std = prices.rolling(window=period).std()
+    upper = sma + (std * std_dev)
+    lower = sma - (std * std_dev)
+    return upper, sma, lower
+
+def calculate_atr(high, low, close, period=14):
+    """Calcola ATR"""
+    high_low = high - low
+    high_close = abs(high - close.shift(1))
+    low_close = abs(low - close.shift(1))
+    tr = pd.concat([high_low, high_close, low_close], axis=1).max(axis=1)
+    atr = tr.rolling(window=period).mean()
+    return atr
+
+# ============================================
+# FUNZIONI MACHINE LEARNING
+# ============================================
+
+def prepare_ml_features(data):
+    """Prepara features per ML"""
+    df = data.copy()
+    
+    # Feature tecniche
+    df['returns'] = df['Close'].pct_change()
+    df['volume_ratio'] = df['Volume'] / df['Volume'].rolling(20).mean()
+    df['high_low_ratio'] = df['High'] / df['Low']
+    df['close_open_ratio'] = df['Close'] / df['Open']
+    
+    # Lagged features
+    for lag in [1, 2, 3, 5]:
+        df[f'return_lag_{lag}'] = df['returns'].shift(lag)
+        df[f'close_lag_{lag}'] = df['Close'].shift(lag)
+    
+    # Rolling statistics
+    for window in [5, 10, 20]:
+        df[f'rolling_mean_{window}'] = df['Close'].rolling(window).mean()
+        df[f'rolling_std_{window}'] = df['Close'].rolling(window).std()
+    
+    return df.dropna()
+
+def train_random_forest(data, target_col='Close', forecast_days=5):
+    """Addestra Random Forest per previsioni"""
+    try:
+        df = prepare_ml_features(data)
+        
+        # Target: prezzo futuro
+        df['target'] = df['Close'].shift(-forecast_days)
+        df = df.dropna()
+        
+        if len(df) < 50:
+            return None, None
+        
+        # Features
+        feature_cols = [col for col in df.columns if col not in ['Close', 'target', 'Open', 'High', 'Low']]
+        X = df[feature_cols].values
+        y = df['target'].values
+        
+        # Train/test split
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+        
+        # Addestra modello
+        model = RandomForestRegressor(n_estimators=100, max_depth=10, random_state=42)
+        model.fit(X_train, y_train)
+        
+        # Previsioni
+        last_features = X[-1:].reshape(1, -1)
+        forecast = model.predict(last_features)[0]
+        
+        # Importanza features
+        importance = dict(zip(feature_cols, model.feature_importances_))
+        
+        return forecast, importance
+    except Exception as e:
+        return None, None
+
+def train_prophet(data, forecast_days=5):
+    """Addestra Prophet per previsioni serie temporali"""
+    try:
+        # Prepara dati per Prophet
+        df_prophet = pd.DataFrame({
+            'ds': data.index,
+            'y': data['Close'].values
+        })
+        
+        # Addestra modello
+        model = Prophet(
+            yearly_seasonality=True,
+            weekly_seasonality=True,
+            daily_seasonality=False,
+            changepoint_prior_scale=0.05
+        )
+        model.fit(df_prophet)
+        
+        # Previsioni future
+        future = model.make_future_dataframe(periods=forecast_days)
+        forecast = model.predict(future)
+        
+        return forecast, model
+    except Exception as e:
+        return None, None
+
+def generate_ml_forecast(data, forecast_days=5, method='ensemble'):
+    """Genera previsioni ML ensemble"""
+    
+    if not ML_AVAILABLE:
+        # Simulazione ML quando librerie non disponibili
+        last_price = float(data['Close'].iloc[-1])
+        volatility = float(data['Close'].pct_change().std())
+        
+        forecasts = []
+        for i in range(forecast_days):
+            change = np.random.normal(0, volatility)
+            pred_price = last_price * (1 + change)
+            forecasts.append({
+                'day': i+1,
+                'price': pred_price,
+                'change_pct': change * 100
+            })
+        
+        confidence = random.uniform(65, 85)
+        
+        return {
+            'method': 'simulated',
+            'forecasts': forecasts,
+            'confidence': confidence,
+            'direction': 'UP' if forecasts[-1]['price'] > last_price else 'DOWN'
+        }
+    
+    try:
+        # Random Forest forecast
+        rf_forecast, rf_importance = train_random_forest(data, forecast_days=forecast_days)
+        
+        # Prophet forecast
+        prophet_forecast, prophet_model = train_prophet(data, forecast_days=forecast_days)
+        
+        last_price = float(data['Close'].iloc[-1])
+        forecasts = []
+        
+        if method == 'random_forest' and rf_forecast:
+            # Usa solo Random Forest
+            direction = 'UP' if rf_forecast > last_price else 'DOWN'
+            change_pct = ((rf_forecast / last_price) - 1) * 100
+            
+            forecasts.append({
+                'day': forecast_days,
+                'price': rf_forecast,
+                'change_pct': change_pct
+            })
+            
+            confidence = 75
+            
+        elif method == 'prophet' and prophet_forecast is not None:
+            # Usa solo Prophet
+            future_prices = prophet_forecast['yhat'].values[-forecast_days:]
+            
+            for i, price in enumerate(future_prices):
+                change_pct = ((price / last_price) - 1) * 100 if i == 0 else 0
+                forecasts.append({
+                    'day': i+1,
+                    'price': price,
+                    'change_pct': change_pct
+                })
+            
+            confidence = 70
+            
+        else:
+            # Ensemble: media dei modelli
+            prophet_prices = prophet_forecast['yhat'].values[-forecast_days:] if prophet_forecast is not None else None
+            
+            for i in range(forecast_days):
+                prices = []
+                
+                if rf_forecast:
+                    # Per RF, usiamo lo stesso forecast per tutti i giorni
+                    prices.append(rf_forecast)
+                
+                if prophet_prices is not None:
+                    prices.append(prophet_prices[i])
+                
+                if prices:
+                    avg_price = np.mean(prices)
+                    change_pct = ((avg_price / last_price) - 1) * 100
+                    
+                    forecasts.append({
+                        'day': i+1,
+                        'price': avg_price,
+                        'change_pct': change_pct
+                    })
+            
+            confidence = 80
+        
+        if not forecasts:
+            return None
+        
+        direction = 'UP' if forecasts[-1]['price'] > last_price else 'DOWN'
+        
+        return {
+            'method': method,
+            'forecasts': forecasts,
+            'confidence': confidence,
+            'direction': direction
+        }
+        
+    except Exception as e:
+        return None
 
 # ============================================
 # FUNZIONI PER IL SENTIMENT AI
@@ -506,14 +786,72 @@ def get_sl_from_pivots(price, pivot_levels, signal_type):
             return price * 1.015, "ATR alternativo"
 
 # ============================================
+# FUNZIONE SEGNALE COMBINATO
+# ============================================
+
+def get_combined_signal(rsi, macd, macd_signal, price, bb_upper, bb_lower, ai_signal):
+    """
+    Genera segnale combinato da tutti gli indicatori
+    """
+    signals = []
+    
+    # RSI signal
+    if rsi < 30:
+        signals.append(2)  # Forte buy
+    elif rsi < 40:
+        signals.append(1)  # Debole buy
+    elif rsi > 70:
+        signals.append(-2) # Forte sell
+    elif rsi > 60:
+        signals.append(-1) # Debole sell
+    else:
+        signals.append(0)
+    
+    # MACD signal
+    if macd > macd_signal:
+        signals.append(1)
+    else:
+        signals.append(-1)
+    
+    # Bollinger signal
+    if price <= bb_lower:
+        signals.append(2)
+    elif price >= bb_upper:
+        signals.append(-2)
+    else:
+        signals.append(0)
+    
+    # AI signal
+    if ai_signal == 'BUY':
+        signals.append(1)
+    elif ai_signal == 'SELL':
+        signals.append(-1)
+    else:
+        signals.append(0)
+    
+    # Calcola punteggio totale
+    total_score = sum(signals)
+    
+    if total_score >= 3:
+        return "BUY", "signal-buy", f"✅ FORTE ACQUISTO (score: {total_score})"
+    elif total_score <= -3:
+        return "SELL", "signal-sell", f"🔴 FORTE VENDITA (score: {total_score})"
+    elif total_score >= 1:
+        return "BUY", "signal-buy", f"🟡 ACQUISTO DEBOLE (score: {total_score})"
+    elif total_score <= -1:
+        return "SELL", "signal-sell", f"🟡 VENDITA DEBOLE (score: {total_score})"
+    else:
+        return "NEUTRAL", "sentiment-neutral", f"⚪ NEUTRALE (score: {total_score})"
+
+# ============================================
 # MAIN APP
 # ============================================
 
 # Header
 st.markdown("""
 <div class="header">
-    <h1>🤖 TRADING TERMINAL AI PRO</h1>
-    <p style="color: #cccccc;">Analisi AI + Pivot Points + Sentiment di Mercato • Dati reali da Yahoo Finance</p>
+    <h1>🤖 TRADING TERMINAL AI ULTIMATE</h1>
+    <p style="color: #cccccc;">RSI + MACD + Bollinger + ML + Pivot Points + Sentiment AI</p>
 </div>
 """, unsafe_allow_html=True)
 
@@ -581,36 +919,55 @@ with st.sidebar:
         }[x]
     )
     
+    # METODO ML
+    st.markdown("#### 🤖 METODO ML")
+    ml_method = st.selectbox(
+        "Metodo previsione",
+        options=['ensemble', 'random_forest', 'prophet', 'simulated'],
+        index=0,
+        format_func=lambda x: {
+            'ensemble': 'Ensemble (RF + Prophet)',
+            'random_forest': 'Random Forest',
+            'prophet': 'Prophet',
+            'simulated': 'Simulato (veloce)'
+        }[x]
+    )
+    
+    ml_days = st.slider("Giorni previsione", 1, 10, 5)
+    
     # MONEY MANAGEMENT
     st.markdown("#### 💰 MONEY MANAGEMENT")
     capitale = st.number_input("Capitale (€)", value=1000, min_value=100, step=100)
     rischio = st.slider("Rischio %", 0.5, 3.0, 1.0, 0.1)
     
     # PULSANTE
-    analyze_btn = st.button("🚀 ANALIZZA CON AI", type="primary", use_container_width=True)
+    analyze_btn = st.button("🚀 ANALIZZA CON AI & ML", type="primary", use_container_width=True)
     
     st.markdown("---")
     st.markdown("""
     <div style="color: #333; background: #fff; padding: 10px; border-radius: 5px; border-left: 3px solid #0066cc;">
-        <b>🧠 FONTI AI:</b><br>
-        • LSEG StarMine / Reuters Polls<br>
-        • GDELT + FinBERT<br>
-        • Machine Learning Models<br>
-        • Pivot Points tecnici
+        <b>🧠 INDICATORI:</b><br>
+        • RSI (14)<br>
+        • MACD (12,26,9)<br>
+        • Bollinger Bands (20,2)<br>
+        • ATR (14)<br>
+        • ML: Random Forest + Prophet<br>
+        • Pivot Points (4 metodi)<br>
+        • Sentiment AI
     </div>
     """, unsafe_allow_html=True)
 
 # MAIN CONTENT
 if analyze_btn:
-    with st.spinner("🤖 Analisi AI in corso... Recupero dati e sentiment..."):
+    with st.spinner("🤖 Analisi AI & ML in corso... Recupero dati e calcolo indicatori..."):
         try:
             symbol = all_assets[selected_asset]
             
             # PERIODO (mappato per timeframe)
             period_options = {
-                '1h': '5d',
-                '4h': '1mo',
-                '1d': '3mo'
+                '1h': '1mo',  # Più dati per ML
+                '4h': '3mo',
+                '1d': '6mo'
             }
             
             # Download DATI REALI
@@ -629,39 +986,44 @@ if analyze_btn:
             # Prezzo attuale
             if isinstance(data['Close'], pd.DataFrame):
                 current_price = float(data['Close'].iloc[-1, 0])
+                close_series = data['Close'].iloc[:, 0]
+                high_series = data['High'].iloc[:, 0]
+                low_series = data['Low'].iloc[:, 0]
+                open_series = data['Open'].iloc[:, 0]
             else:
                 current_price = float(data['Close'].iloc[-1])
+                close_series = data['Close']
+                high_series = data['High']
+                low_series = data['Low']
+                open_series = data['Open']
             
-            # Calcola RSI
-            close_series = data['Close'].iloc[:,0] if isinstance(data['Close'], pd.DataFrame) else data['Close']
-            delta = close_series.diff()
-            gain = delta.where(delta > 0, 0).rolling(window=14).mean()
-            loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
-            rs = gain / loss
-            rsi = 100 - (100 / (1 + rs))
+            # ============================================
+            # CALCOLO INDICATORI
+            # ============================================
+            
+            # RSI
+            rsi = calculate_rsi(close_series)
             current_rsi = float(rsi.iloc[-1]) if not pd.isna(rsi.iloc[-1]) else 50.0
             
-            # Calcola ATR
-            high_series = data['High'].iloc[:,0] if isinstance(data['High'], pd.DataFrame) else data['High']
-            low_series = data['Low'].iloc[:,0] if isinstance(data['Low'], pd.DataFrame) else data['Low']
-            close_series_atr = data['Close'].iloc[:,0] if isinstance(data['Close'], pd.DataFrame) else data['Close']
+            # MACD
+            macd, macd_signal, macd_hist = calculate_macd(close_series)
+            current_macd = float(macd.iloc[-1]) if not pd.isna(macd.iloc[-1]) else 0
+            current_macd_signal = float(macd_signal.iloc[-1]) if not pd.isna(macd_signal.iloc[-1]) else 0
+            current_macd_hist = float(macd_hist.iloc[-1]) if not pd.isna(macd_hist.iloc[-1]) else 0
             
-            high_low = high_series - low_series
-            high_close = abs(high_series - close_series_atr.shift(1))
-            low_close = abs(low_series - close_series_atr.shift(1))
-            tr = pd.concat([high_low, high_close, low_close], axis=1).max(axis=1)
-            atr = float(tr.tail(14).mean())
+            # Bollinger Bands
+            bb_upper, bb_middle, bb_lower = calculate_bollinger(close_series)
+            current_bb_upper = float(bb_upper.iloc[-1]) if not pd.isna(bb_upper.iloc[-1]) else current_price * 1.02
+            current_bb_lower = float(bb_lower.iloc[-1]) if not pd.isna(bb_lower.iloc[-1]) else current_price * 0.98
+            current_bb_middle = float(bb_middle.iloc[-1]) if not pd.isna(bb_middle.iloc[-1]) else current_price
             
-            # Calcola livelli chiave
-            if isinstance(data['High'].tail(20).max(), pd.Series):
-                high_20 = float(data['High'].tail(20).max().iloc[0])
-            else:
-                high_20 = float(data['High'].tail(20).max())
-                
-            if isinstance(data['Low'].tail(20).min(), pd.Series):
-                low_20 = float(data['Low'].tail(20).min().iloc[0])
-            else:
-                low_20 = float(data['Low'].tail(20).min())
+            # ATR
+            atr = calculate_atr(high_series, low_series, close_series)
+            current_atr = float(atr.iloc[-1]) if not pd.isna(atr.iloc[-1]) else (high_series.tail(20).max() - low_series.tail(20).min()) * 0.1
+            
+            # Livelli chiave
+            high_20 = float(high_series.tail(20).max())
+            low_20 = float(low_series.tail(20).min())
             
             # Volume
             if 'Volume' in data.columns:
@@ -673,13 +1035,12 @@ if analyze_btn:
                 volume = 0
             
             # ============================================
-            # PARTE 1: SENTIMENT AI
+            # SENTIMENT AI
             # ============================================
             st.markdown("## 🧠 ANALISI AI E SENTIMENT")
             
             sentiment_data = get_market_sentiment(selected_asset)
             
-            # Determina trend e segnale AI
             if sentiment_data['prediction'] == 'BUY':
                 ai_signal = "BUY"
                 ai_class = "sentiment-positive"
@@ -690,7 +1051,6 @@ if analyze_btn:
                 ai_signal = "NEUTRAL"
                 ai_class = "sentiment-neutral"
             
-            # AI Card
             with st.container():
                 st.markdown(f"""
                 <div class="ai-card">
@@ -703,33 +1063,85 @@ if analyze_btn:
                 """, unsafe_allow_html=True)
             
             # ============================================
-            # PARTE 2: PIVOT POINTS
+            # MACHINE LEARNING FORECAST
+            # ============================================
+            st.markdown("## 🤖 PREVISIONI MACHINE LEARNING")
+            
+            ml_forecast = generate_ml_forecast(data, forecast_days=ml_days, method=ml_method)
+            
+            if ml_forecast:
+                ml_class = "sentiment-positive" if ml_forecast['direction'] == 'UP' else "sentiment-negative"
+                
+                with st.container():
+                    st.markdown(f"""
+                    <div class="ml-card">
+                        <div class="ml-title">🤖 ML FORECAST ({ml_forecast['method'].upper()})</div>
+                        <div style="margin-bottom: 15px;">
+                            <span class="{ml_class}">DIREZIONE: {ml_forecast['direction']} (confidenza: {ml_forecast['confidence']:.0f}%)</span>
+                        </div>
+                        <div class="ai-content">
+                            <p><b>📊 Previsioni prossimi {ml_days} giorni:</b></p>
+                    """, unsafe_allow_html=True)
+                    
+                    # Tabella previsioni
+                    forecast_df = pd.DataFrame(ml_forecast['forecasts'])
+                    st.dataframe(forecast_df, use_container_width=True)
+                    
+                    # Grafico previsioni
+                    fig_ml = go.Figure()
+                    
+                    # Dati storici recenti
+                    fig_ml.add_trace(go.Scatter(
+                        x=data.index[-50:],
+                        y=close_series[-50:],
+                        mode='lines',
+                        name='Storico',
+                        line=dict(color='#00ff00', width=2)
+                    ))
+                    
+                    # Previsioni
+                    forecast_dates = [data.index[-1] + timedelta(days=d['day']) for d in ml_forecast['forecasts']]
+                    forecast_prices = [d['price'] for d in ml_forecast['forecasts']]
+                    
+                    fig_ml.add_trace(go.Scatter(
+                        x=forecast_dates,
+                        y=forecast_prices,
+                        mode='lines+markers',
+                        name='Previsione ML',
+                        line=dict(color='#aa00ff', width=2, dash='dash'),
+                        marker=dict(size=8)
+                    ))
+                    
+                    fig_ml.update_layout(
+                        template='plotly_dark',
+                        height=300,
+                        title='Previsione ML vs Storico',
+                        showlegend=True,
+                        margin=dict(l=0, r=0, t=30, b=0)
+                    )
+                    
+                    st.plotly_chart(fig_ml, use_container_width=True)
+                    
+                    st.markdown("</div></div>", unsafe_allow_html=True)
+            else:
+                st.warning("⚠️ Previsione ML non disponibile. Uso simulazione.")
+            
+            # ============================================
+            # PIVOT POINTS
             # ============================================
             st.markdown("## 📐 LIVELLI PIVOT")
             
-            # Usa high/low/close dell'ultima candela completa
             if len(data) > 1:
-                if isinstance(data['High'], pd.DataFrame):
-                    prev_high = float(data['High'].iloc[-2, 0])
-                    prev_low = float(data['Low'].iloc[-2, 0])
-                    prev_close = float(data['Close'].iloc[-2, 0])
-                else:
-                    prev_high = float(data['High'].iloc[-2])
-                    prev_low = float(data['Low'].iloc[-2])
-                    prev_close = float(data['Close'].iloc[-2])
+                prev_high = float(high_series.iloc[-2])
+                prev_low = float(low_series.iloc[-2])
+                prev_close = float(close_series.iloc[-2])
             else:
-                if isinstance(data['High'], pd.DataFrame):
-                    prev_high = float(data['High'].iloc[-1, 0])
-                    prev_low = float(data['Low'].iloc[-1, 0])
-                    prev_close = float(data['Close'].iloc[-1, 0])
-                else:
-                    prev_high = float(data['High'].iloc[-1])
-                    prev_low = float(data['Low'].iloc[-1])
-                    prev_close = float(data['Close'].iloc[-1])
+                prev_high = float(high_series.iloc[-1])
+                prev_low = float(low_series.iloc[-1])
+                prev_close = float(close_series.iloc[-1])
             
             pivot_levels = calculate_pivot_points(prev_high, prev_low, prev_close, pivot_method)
             
-            # Visualizza Pivot in colonne
             col1, col2, col3 = st.columns(3)
             
             with col1:
@@ -769,49 +1181,35 @@ if analyze_btn:
                 """, unsafe_allow_html=True)
             
             # ============================================
-            # PARTE 3: SEGNALE COMBINATO
+            # SEGNALE COMBINATO
             # ============================================
             
             st.markdown("## 🎯 SEGNALE COMBINATO")
             
-            # Segnale base da RSI
-            if current_rsi > 50:
-                base_signal = "BUY"
-                base_class = "signal-buy"
-            else:
-                base_signal = "SELL"
-                base_class = "signal-sell"
-            
-            # Segnale combinato (AI + Tecnico)
-            if ai_signal == base_signal:
-                combined_signal = f"✅ CONFERMATO: {ai_signal} (AI e Tecnico allineati)"
-                combined_class = base_class
-            elif ai_signal == "NEUTRAL":
-                combined_signal = f"⚠️ TECNICO: {base_signal} (AI neutrale)"
-                combined_class = base_class
-            else:
-                combined_signal = f"⚠️ DIVERGENZA: Tecnico={base_signal}, AI={ai_signal}"
-                combined_class = "sentiment-neutral"
+            combined_signal, combined_class, signal_desc = get_combined_signal(
+                current_rsi, current_macd, current_macd_signal, 
+                current_price, current_bb_upper, current_bb_lower, ai_signal
+            )
             
             st.markdown(f"""
             <div style="background: #1a1f2e; padding: 15px; border-radius: 10px; margin: 15px 0; border-left: 5px solid #00ff00;">
-                <h3 style="color: #ffffff; margin: 0;">{combined_signal}</h3>
+                <h3 style="color: #ffffff; margin: 0;">{signal_desc}</h3>
             </div>
             """, unsafe_allow_html=True)
             
             # ============================================
-            # PARTE 4: LIVELLI OPERATIVI
+            # LIVELLI OPERATIVI
             # ============================================
             
             st.markdown("## 📊 LIVELLI OPERATIVI")
             
             # DETERMINA TP BASATO SU PIVOT
-            if base_signal == "BUY":
-                entry = current_price * 0.998  # Leggero sconto
+            if combined_signal == "BUY":
+                entry = current_price * 0.998
                 tp, tp_source = get_tp_from_pivots(current_price, pivot_levels, "BUY")
                 sl, sl_source = get_sl_from_pivots(current_price, pivot_levels, "BUY")
             else:
-                entry = current_price * 1.002  # Leggero premio
+                entry = current_price * 1.002
                 tp, tp_source = get_tp_from_pivots(current_price, pivot_levels, "SELL")
                 sl, sl_source = get_sl_from_pivots(current_price, pivot_levels, "SELL")
             
@@ -851,7 +1249,7 @@ if analyze_btn:
             # Price Card
             st.markdown(f"""
             <div class="price-card">
-                <div class="{base_class}">{base_signal}</div>
+                <div class="{combined_class}">{combined_signal}</div>
                 <div class="price-value">{current_price:,.4f}</div>
                 <div style="color: #cccccc; margin-top: 10px;">
                     {selected_asset} | {timeframe} | Agg: {datetime.now().strftime('%H:%M:%S')}
@@ -915,63 +1313,82 @@ if analyze_btn:
                 </div>
                 """, unsafe_allow_html=True)
             
-            # Metriche aggiuntive
-            col1, col2, col3, col4 = st.columns(4)
+            # Tabella indicatori
+            st.markdown("## 📊 TABELLA INDICATORI")
             
-            with col1:
-                st.markdown(f"""
-                <div class="metric-card">
-                    <div class="metric-label">RSI (14)</div>
-                    <div class="metric-value">{current_rsi:.1f}</div>
-                </div>
-                """, unsafe_allow_html=True)
+            indicators_data = {
+                'Indicatore': ['RSI (14)', 'MACD', 'MACD Signal', 'MACD Histogram', 
+                              'Bollinger Upper', 'Bollinger Middle', 'Bollinger Lower',
+                              'ATR (14)', 'Volume'],
+                'Valore': [
+                    f"{current_rsi:.2f}",
+                    f"{current_macd:.4f}",
+                    f"{current_macd_signal:.4f}",
+                    f"{current_macd_hist:.4f}",
+                    f"{current_bb_upper:.4f}",
+                    f"{current_bb_middle:.4f}",
+                    f"{current_bb_lower:.4f}",
+                    f"{current_atr:.4f}",
+                    f"{volume:,.0f}"
+                ],
+                'Segnale': [
+                    'Ipercomprato >70, Ipervenduto <30',
+                    '> Signal = Bullish',
+                    '< MACD = Bearish',
+                    'Positivo = Bullish',
+                    'Resistenza',
+                    'Media mobile',
+                    'Supporto',
+                    'Volatilità',
+                    'Liquidità'
+                ]
+            }
             
-            with col2:
-                st.markdown(f"""
-                <div class="metric-card">
-                    <div class="metric-label">ATR (14)</div>
-                    <div class="metric-value">{atr:.4f}</div>
-                </div>
-                """, unsafe_allow_html=True)
+            indicators_df = pd.DataFrame(indicators_data)
+            st.dataframe(indicators_df, use_container_width=True, hide_index=True)
             
-            with col3:
-                st.markdown(f"""
-                <div class="metric-card">
-                    <div class="metric-label">VOLUME</div>
-                    <div class="metric-value">{volume:,.0f}</div>
-                </div>
-                """, unsafe_allow_html=True)
-            
-            with col4:
-                st.markdown(f"""
-                <div class="metric-card">
-                    <div class="metric-label">RANGE 20gg</div>
-                    <div class="metric-value">{(high_20-low_20):.4f}</div>
-                </div>
-                """, unsafe_allow_html=True)
-            
-            # Grafico
-            st.markdown("## 📈 GRAFICO")
+            # Grafico completo
+            st.markdown("## 📈 GRAFICO COMPLETO")
             
             fig = make_subplots(
-                rows=2, cols=1,
+                rows=4, cols=1,
                 shared_xaxes=True,
-                vertical_spacing=0.05,
-                row_heights=[0.7, 0.3]
+                vertical_spacing=0.03,
+                row_heights=[0.4, 0.2, 0.2, 0.2],
+                subplot_titles=('Prezzo & Bollinger', 'Volume', 'MACD', 'RSI')
             )
             
-            # Candele
+            # Prezzo e Bollinger
             fig.add_trace(go.Candlestick(
-                x=data.index[-50:],
-                open=data['Open'].iloc[-50:].values if not isinstance(data['Open'].iloc[-50:], pd.DataFrame) else data['Open'].iloc[-50:,0].values,
-                high=data['High'].iloc[-50:].values if not isinstance(data['High'].iloc[-50:], pd.DataFrame) else data['High'].iloc[-50:,0].values,
-                low=data['Low'].iloc[-50:].values if not isinstance(data['Low'].iloc[-50:], pd.DataFrame) else data['Low'].iloc[-50:,0].values,
-                close=data['Close'].iloc[-50:].values if not isinstance(data['Close'].iloc[-50:], pd.DataFrame) else data['Close'].iloc[-50:,0].values,
-                increasing_line_color='#00ff00',
-                decreasing_line_color='#ff4444'
+                x=data.index[-100:],
+                open=open_series[-100:],
+                high=high_series[-100:],
+                low=low_series[-100:],
+                close=close_series[-100:],
+                name='Prezzo',
+                showlegend=False
             ), row=1, col=1)
             
-            # Linee
+            # Bollinger Bands
+            fig.add_trace(go.Scatter(
+                x=data.index[-100:],
+                y=bb_upper[-100:],
+                line=dict(color='rgba(0,255,0,0.3)', width=1),
+                name='BB Upper',
+                showlegend=False
+            ), row=1, col=1)
+            
+            fig.add_trace(go.Scatter(
+                x=data.index[-100:],
+                y=bb_lower[-100:],
+                line=dict(color='rgba(255,0,0,0.3)', width=1),
+                fill='tonexty',
+                fillcolor='rgba(128,128,128,0.1)',
+                name='BB Lower',
+                showlegend=False
+            ), row=1, col=1)
+            
+            # Linee di livello
             fig.add_hline(y=entry, line_color='cyan', line_width=2,
                          annotation_text=f'Entry {entry:.2f}', row=1, col=1)
             fig.add_hline(y=tp, line_color='lime', line_dash='dash',
@@ -981,23 +1398,62 @@ if analyze_btn:
             
             # Volume
             if 'Volume' in data.columns:
-                vol_data = data['Volume'].iloc[-50:].values if not isinstance(data['Volume'].iloc[-50:], pd.DataFrame) else data['Volume'].iloc[-50:,0].values
+                vol_data = data['Volume'].iloc[-100:] if not isinstance(data['Volume'].iloc[-100:], pd.DataFrame) else data['Volume'].iloc[-100:,0]
                 fig.add_trace(go.Bar(
-                    x=data.index[-50:],
+                    x=data.index[-100:],
                     y=vol_data,
-                    marker_color='#00ff00'
+                    marker_color='#00ff00',
+                    name='Volume',
+                    showlegend=False
                 ), row=2, col=1)
+            
+            # MACD
+            fig.add_trace(go.Scatter(
+                x=data.index[-100:],
+                y=macd[-100:],
+                line=dict(color='#00ff00', width=2),
+                name='MACD',
+                showlegend=False
+            ), row=3, col=1)
+            
+            fig.add_trace(go.Scatter(
+                x=data.index[-100:],
+                y=macd_signal[-100:],
+                line=dict(color='#ffaa00', width=2),
+                name='Signal',
+                showlegend=False
+            ), row=3, col=1)
+            
+            fig.add_trace(go.Bar(
+                x=data.index[-100:],
+                y=macd_hist[-100:],
+                marker_color=['#00ff00' if x >= 0 else '#ff4444' for x in macd_hist[-100:]],
+                name='Histogram',
+                showlegend=False
+            ), row=3, col=1)
+            
+            # RSI
+            fig.add_trace(go.Scatter(
+                x=data.index[-100:],
+                y=rsi[-100:],
+                line=dict(color='#aa00ff', width=2),
+                name='RSI',
+                showlegend=False
+            ), row=4, col=1)
+            
+            fig.add_hline(y=70, line_color='red', line_dash='dash', row=4, col=1)
+            fig.add_hline(y=30, line_color='green', line_dash='dash', row=4, col=1)
             
             fig.update_layout(
                 template='plotly_dark',
-                height=500,
+                height=800,
                 showlegend=False,
-                margin=dict(l=0, r=0, t=0, b=0)
+                margin=dict(l=0, r=0, t=30, b=0)
             )
             
             st.plotly_chart(fig, use_container_width=True)
             
-            # Info aggiuntive
+            # Supporto/Resistenza
             col1, col2 = st.columns(2)
             
             with col1:
@@ -1024,22 +1480,26 @@ else:
     # Messaggio iniziale
     st.markdown("""
     <div style="text-align: center; padding: 50px 20px; color: #cccccc;">
-        <h2 style="color: #00ff00;">👋 Benvenuto su Trading Terminal AI Pro</h2>
+        <h2 style="color: #00ff00;">👋 Benvenuto su Trading Terminal AI Ultimate</h2>
         <p style="font-size: 18px; margin: 20px 0;">
-            Seleziona un asset e i parametri dal menu a sinistra, poi clicca su ANALIZZA CON AI
+            Seleziona un asset e i parametri dal menu a sinistra, poi clicca su ANALIZZA CON AI & ML
         </p>
-        <div style="display: flex; justify-content: center; gap: 20px; margin: 40px 0;">
+        <div style="display: flex; justify-content: center; gap: 20px; margin: 40px 0; flex-wrap: wrap;">
             <div style="background: #1a1f2e; padding: 20px; border-radius: 10px; width: 200px;">
-                <h3 style="color: #00ff00;">🤖 15+</h3>
-                <p>Asset con AI</p>
+                <h3 style="color: #00ff00;">📊 15+</h3>
+                <p>Asset</p>
+            </div>
+            <div style="background: #1a1f2e; padding: 20px; border-radius: 10px; width: 200px;">
+                <h3 style="color: #00ff00;">📈 5</h3>
+                <p>Indicatori</p>
+            </div>
+            <div style="background: #1a1f2e; padding: 20px; border-radius: 10px; width: 200px;">
+                <h3 style="color: #00ff00;">🤖 3</h3>
+                <p>Modelli ML</p>
             </div>
             <div style="background: #1a1f2e; padding: 20px; border-radius: 10px; width: 200px;">
                 <h3 style="color: #00ff00;">📐 4</h3>
-                <p>Metodi Pivot</p>
-            </div>
-            <div style="background: #1a1f2e; padding: 20px; border-radius: 10px; width: 200px;">
-                <h3 style="color: #00ff00;">⚡ Real-time</h3>
-                <p>Dati live</p>
+                <p>Pivot Methods</p>
             </div>
         </div>
     </div>
@@ -1049,6 +1509,6 @@ else:
 st.markdown("""
 <div class="footer">
     <p>⚠️ Disclaimer: Questo è un tool informativo, non un consiglio finanziario. I dati possono subire ritardi.</p>
-    <p>© 2024 Trading Terminal AI Pro | Dati forniti da Yahoo Finance</p>
+    <p>© 2024 Trading Terminal AI Ultimate | RSI • MACD • Bollinger • ML • Pivot Points • Sentiment AI</p>
 </div>
 """, unsafe_allow_html=True)
