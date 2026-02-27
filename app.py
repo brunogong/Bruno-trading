@@ -13,7 +13,7 @@ import pytz
 # Configurazione pagina
 st.set_page_config(
     page_title="Trading Pro",
-    page_icon="??",
+    page_icon="📊",
     layout="centered",
     initial_sidebar_state="collapsed"
 )
@@ -56,11 +56,11 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # Header
-st.markdown("<div class='header'><h1 style='color:#00ff00;'>?? TRADING TERMINAL PRO</h1><p style='color:#888;'>Analisi in Tempo Reale</p></div>", unsafe_allow_html=True)
+st.markdown("<div class='header'><h1 style='color:#00ff00;'>📊 TRADING TERMINAL PRO</h1><p style='color:#888;'>Analisi in Tempo Reale</p></div>", unsafe_allow_html=True)
 
 # Input nella sidebar
 with st.sidebar:
-    st.markdown("### ?? Controlli")
+    st.markdown("### ⚙️ Controlli")
     
     assets = {
         'XAU/USD (Oro)': 'GC=F',
@@ -70,15 +70,15 @@ with st.sidebar:
         'S&P 500': '^GSPC'
     }
     
-    asset = st.selectbox("?? Asset", list(assets.keys()))
-    timeframe = st.selectbox("?? Timeframe", ["1h", "4h", "1d"])
-    capitale = st.number_input("?? Capitale (�)", value=1000, step=100)
-    rischio = st.slider("?? Rischio %", 0.5, 3.0, 1.0, 0.1)
+    asset = st.selectbox("📊 Asset", list(assets.keys()))
+    timeframe = st.selectbox("⏱️ Timeframe", ["1h", "4h", "1d"])
+    capitale = st.number_input("💰 Capitale (€)", value=1000, step=100)
+    rischio = st.slider("⚠️ Rischio %", 0.5, 3.0, 1.0, 0.1)
 
 # Bottone analisi
-if st.button("?? ANALIZZA ORA", type="primary", use_container_width=True):
+if st.button("🚀 ANALIZZA ORA", type="primary", use_container_width=True):
     
-    with st.spinner("?? Caricamento dati..."):
+    with st.spinner("📥 Caricamento dati..."):
         try:
             symbol = assets[asset]
             
@@ -124,12 +124,12 @@ if st.button("?? ANALIZZA ORA", type="primary", use_container_width=True):
                 
                 # Genera segnale
                 if current_rsi > 50:
-                    signal = "?? BUY"
+                    signal = "🟢 BUY"
                     entry = low_20 + (high_20 - low_20) * 0.382
                     sl = entry - (atr * 1.5)
                     tp = entry + (atr * 2)
                 else:
-                    signal = "?? SELL"
+                    signal = "🔴 SELL"
                     entry = high_20 - (high_20 - low_20) * 0.382
                     sl = entry + (atr * 1.5)
                     tp = entry - (atr * 2)
@@ -165,7 +165,7 @@ if st.button("?? ANALIZZA ORA", type="primary", use_container_width=True):
                 
                 cols = st.columns(3)
                 with cols[0]: st.metric("Lotti", f"{lotti:.2f}")
-                with cols[1]: st.metric("Rischio �", f"{lotti * dist_sl * multiplier:.2f}")
+                with cols[1]: st.metric("Rischio €", f"{lotti * dist_sl * multiplier:.2f}")
                 with cols[2]: 
                     rr = abs((tp-entry)/(sl-entry)) if sl != entry else 1
                     st.metric("R/R", f"{rr:.2f}")
@@ -203,14 +203,14 @@ if st.button("?? ANALIZZA ORA", type="primary", use_container_width=True):
                 
                 st.plotly_chart(fig, use_container_width=True)
                 
-                st.success(f"? Aggiornato: {datetime.now().strftime('%H:%M:%S')}")
+                st.success(f"✅ Aggiornato: {datetime.now().strftime('%H:%M:%S')}")
                 
             else:
-                st.error("? Nessun dato disponibile")
+                st.error("❌ Nessun dato disponibile")
                 
         except Exception as e:
-            st.error(f"? Errore: {str(e)}")
+            st.error(f"❌ Errore: {str(e)}")
 
 # Footer
 st.markdown("---")
-st.markdown("<p style='text-align:center; color:#666; font-size:12px;'>?? Disclaimer: Tool informativo - Verifica sempre prima di tradare</p>", unsafe_allow_html=True)
+st.markdown("<p style='text-align:center; color:#666; font-size:12px;'>⚠️ Disclaimer: Tool informativo - Verifica sempre prima di tradare</p>", unsafe_allow_html=True)
