@@ -653,8 +653,15 @@ if analyze_btn:
             atr = float(tr.tail(14).mean())
             
             # Calcola livelli chiave
-            high_20 = float(data['High'].tail(20).max()) if not isinstance(data['High'].tail(20).max(), pd.Series) else float(data['High'].tail(20).max().iloc[0])
-            low_20 = float(data['Low'].tail(20).min()) if not isinstance(data['Low'].tail(20).min(), pd.Series) else float(data['Low'].tail(20).min().iloc[0])
+            if isinstance(data['High'].tail(20).max(), pd.Series):
+                high_20 = float(data['High'].tail(20).max().iloc[0])
+            else:
+                high_20 = float(data['High'].tail(20).max())
+                
+            if isinstance(data['Low'].tail(20).min(), pd.Series):
+                low_20 = float(data['Low'].tail(20).min().iloc[0])
+            else:
+                low_20 = float(data['Low'].tail(20).min())
             
             # Volume
             if 'Volume' in data.columns:
@@ -841,4 +848,207 @@ if analyze_btn:
             actual_risk = lotti * abs(entry - sl) * multiplier
             rr_ratio = abs(tp - entry) / abs(sl - entry) if sl != entry else 1
             
-            #
+            # Price Card
+            st.markdown(f"""
+            <div class="price-card">
+                <div class="{base_class}">{base_signal}</div>
+                <div class="price-value">{current_price:,.4f}</div>
+                <div style="color: #cccccc; margin-top: 10px;">
+                    {selected_asset} | {timeframe} | Agg: {datetime.now().strftime('%H:%M:%S')}
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            # Livelli
+            col1, col2, col3 = st.columns(3)
+            
+            with col1:
+                st.markdown(f"""
+                <div class="level-card">
+                    <div class="level-label">ENTRY</div>
+                    <div class="entry-value">{entry:,.4f}</div>
+                </div>
+                """, unsafe_allow_html=True)
+            
+            with col2:
+                st.markdown(f"""
+                <div class="level-card">
+                    <div class="level-label">TAKE PROFIT</div>
+                    <div class="tp-value">{tp:,.4f}</div>
+                    <div style="color: #888; font-size: 11px;">{pips_to_tp:.0f} pips ({tp_source})</div>
+                </div>
+                """, unsafe_allow_html=True)
+            
+            with col3:
+                st.markdown(f"""
+                <div class="level-card">
+                    <div class="level-label">STOP LOSS</div>
+                    <div class="sl-value">{sl:,.4f}</div>
+                    <div style="color: #888; font-size: 11px;">{pips_to_sl:.0f} pips ({sl_source})</div>
+                </div>
+                """, unsafe_allow_html=True)
+            
+            # Money Management
+            col1, col2, col3 = st.columns(3)
+            
+            with col1:
+                st.markdown(f"""
+                <div class="metric-card">
+                    <div class="metric-label">LOTTI</div>
+                    <div class="metric-value">{lotti:.2f}</div>
+                </div>
+                """, unsafe_allow_html=True)
+            
+            with col2:
+                st.markdown(f"""
+                <div class="metric-card">
+                    <div class="metric-label">RISCHIO €</div>
+                    <div class="metric-value" style="color: #ff4444 !important;">€{actual_risk:,.2f}</div>
+                </div>
+                """, unsafe_allow_html=True)
+            
+            with col3:
+                st.markdown(f"""
+                <div class="metric-card">
+                    <div class="metric-label">R/R RATIO</div>
+                    <div class="metric-value">{rr_ratio:.2f}</div>
+                </div>
+                """, unsafe_allow_html=True)
+            
+            # Metriche aggiuntive
+            col1, col2, col3, col4 = st.columns(4)
+            
+            with col1:
+                st.markdown(f"""
+                <div class="metric-card">
+                    <div class="metric-label">RSI (14)</div>
+                    <div class="metric-value">{current_rsi:.1f}</div>
+                </div>
+                """, unsafe_allow_html=True)
+            
+            with col2:
+                st.markdown(f"""
+                <div class="metric-card">
+                    <div class="metric-label">ATR (14)</div>
+                    <div class="metric-value">{atr:.4f}</div>
+                </div>
+                """, unsafe_allow_html=True)
+            
+            with col3:
+                st.markdown(f"""
+                <div class="metric-card">
+                    <div class="metric-label">VOLUME</div>
+                    <div class="metric-value">{volume:,.0f}</div>
+                </div>
+                """, unsafe_allow_html=True)
+            
+            with col4:
+                st.markdown(f"""
+                <div class="metric-card">
+                    <div class="metric-label">RANGE 20gg</div>
+                    <div class="metric-value">{(high_20-low_20):.4f}</div>
+                </div>
+                """, unsafe_allow_html=True)
+            
+            # Grafico
+            st.markdown("## 📈 GRAFICO")
+            
+            fig = make_subplots(
+                rows=2, cols=1,
+                shared_xaxes=True,
+                vertical_spacing=0.05,
+                row_heights=[0.7, 0.3]
+            )
+            
+            # Candele
+            fig.add_trace(go.Candlestick(
+                x=data.index[-50:],
+                open=data['Open'].iloc[-50:].values if not isinstance(data['Open'].iloc[-50:], pd.DataFrame) else data['Open'].iloc[-50:,0].values,
+                high=data['High'].iloc[-50:].values if not isinstance(data['High'].iloc[-50:], pd.DataFrame) else data['High'].iloc[-50:,0].values,
+                low=data['Low'].iloc[-50:].values if not isinstance(data['Low'].iloc[-50:], pd.DataFrame) else data['Low'].iloc[-50:,0].values,
+                close=data['Close'].iloc[-50:].values if not isinstance(data['Close'].iloc[-50:], pd.DataFrame) else data['Close'].iloc[-50:,0].values,
+                increasing_line_color='#00ff00',
+                decreasing_line_color='#ff4444'
+            ), row=1, col=1)
+            
+            # Linee
+            fig.add_hline(y=entry, line_color='cyan', line_width=2,
+                         annotation_text=f'Entry {entry:.2f}', row=1, col=1)
+            fig.add_hline(y=tp, line_color='lime', line_dash='dash',
+                         annotation_text=f'TP {tp:.2f}', row=1, col=1)
+            fig.add_hline(y=sl, line_color='red', line_dash='dash',
+                         annotation_text=f'SL {sl:.2f}', row=1, col=1)
+            
+            # Volume
+            if 'Volume' in data.columns:
+                vol_data = data['Volume'].iloc[-50:].values if not isinstance(data['Volume'].iloc[-50:], pd.DataFrame) else data['Volume'].iloc[-50:,0].values
+                fig.add_trace(go.Bar(
+                    x=data.index[-50:],
+                    y=vol_data,
+                    marker_color='#00ff00'
+                ), row=2, col=1)
+            
+            fig.update_layout(
+                template='plotly_dark',
+                height=500,
+                showlegend=False,
+                margin=dict(l=0, r=0, t=0, b=0)
+            )
+            
+            st.plotly_chart(fig, use_container_width=True)
+            
+            # Info aggiuntive
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                st.markdown(f"""
+                <div class="level-card">
+                    <div class="level-label">SUPPORTO (20gg)</div>
+                    <div class="entry-value">{low_20:,.4f}</div>
+                </div>
+                """, unsafe_allow_html=True)
+            
+            with col2:
+                st.markdown(f"""
+                <div class="level-card">
+                    <div class="level-label">RESISTENZA (20gg)</div>
+                    <div class="tp-value">{high_20:,.4f}</div>
+                </div>
+                """, unsafe_allow_html=True)
+            
+        except Exception as e:
+            st.error(f"❌ Errore durante l'analisi: {str(e)}")
+            st.exception(e)
+
+else:
+    # Messaggio iniziale
+    st.markdown("""
+    <div style="text-align: center; padding: 50px 20px; color: #cccccc;">
+        <h2 style="color: #00ff00;">👋 Benvenuto su Trading Terminal AI Pro</h2>
+        <p style="font-size: 18px; margin: 20px 0;">
+            Seleziona un asset e i parametri dal menu a sinistra, poi clicca su ANALIZZA CON AI
+        </p>
+        <div style="display: flex; justify-content: center; gap: 20px; margin: 40px 0;">
+            <div style="background: #1a1f2e; padding: 20px; border-radius: 10px; width: 200px;">
+                <h3 style="color: #00ff00;">🤖 15+</h3>
+                <p>Asset con AI</p>
+            </div>
+            <div style="background: #1a1f2e; padding: 20px; border-radius: 10px; width: 200px;">
+                <h3 style="color: #00ff00;">📐 4</h3>
+                <p>Metodi Pivot</p>
+            </div>
+            <div style="background: #1a1f2e; padding: 20px; border-radius: 10px; width: 200px;">
+                <h3 style="color: #00ff00;">⚡ Real-time</h3>
+                <p>Dati live</p>
+            </div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+# Footer
+st.markdown("""
+<div class="footer">
+    <p>⚠️ Disclaimer: Questo è un tool informativo, non un consiglio finanziario. I dati possono subire ritardi.</p>
+    <p>© 2024 Trading Terminal AI Pro | Dati forniti da Yahoo Finance</p>
+</div>
+""", unsafe_allow_html=True)
